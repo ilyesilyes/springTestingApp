@@ -15,7 +15,7 @@ import java.util.Map;
 
 import static fr.meritis.first.enumeration.RoleType.ROLE_USER;
 import static fr.meritis.first.query.RoleQuery.INSERT_ROLE_TO_USER_QUERY;
-import static fr.meritis.first.query.RoleQuery.SELECT_QUERY_BY_NAME_QUERY;
+import static fr.meritis.first.query.RoleQuery.SELECT_ROLE_BY_NAME_QUERY;
 import static java.util.Objects.requireNonNull;
 
 
@@ -54,11 +54,12 @@ public class RoleRepositoryImpl implements RoleRepository<Role> {
     public void addRoleToUser(Long userId, String roleName) {
         log.info("Adding role {} to user id {}", roleName, userId);
         try {
-            Role role = namedParameterJdbcTemplate.queryForObject(SELECT_QUERY_BY_NAME_QUERY, Map.of("roleName", roleName),new RoleRowMapper());
+            Role role = namedParameterJdbcTemplate.queryForObject(SELECT_ROLE_BY_NAME_QUERY, Map.of("roleName", roleName),new RoleRowMapper());
             namedParameterJdbcTemplate.update(INSERT_ROLE_TO_USER_QUERY, Map.of("userId", userId, "roleId", requireNonNull(role).getId()));
         } catch (EmptyResultDataAccessException exception) {
             throw new ApiException("No role found by name: " + ROLE_USER.name());
         } catch (Exception exception) {
+            log.error(exception.getMessage());
             throw new ApiException("An error occure. Please try again.");
         }
     }
