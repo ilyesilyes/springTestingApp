@@ -56,7 +56,8 @@ public class UserRepositoryImpl implements UserRepository<User> {
 
             return user;
         } catch (Exception exception) {
-            throw new ApiException("An error occured please try again.");
+            log.error(exception.getMessage());
+            throw new ApiException("An error occured please try again." );
         }
     }
 
