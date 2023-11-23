@@ -3,8 +3,8 @@ spring:
     #    exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
     datasource:
         url: jdbc:mysql://prodUrl:3306/securecapita
-        password: letmein
-        username: root
+        password: ${DB_PWD_REMOTE}
+        username: ${DB_USER_REMOTE}
     jpa:
         database-platform: org.hibernate.dialect.MySQL8InnoDialect
         generate-ddl: true
