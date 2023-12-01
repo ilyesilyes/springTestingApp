@@ -18,7 +18,7 @@ CREATE TABLE Users
     phone        VARCHAR(30)     NULL,
     title        VARCHAR(50)     NULL,
     bio          VARCHAR(255)    NULL,
-    enabled      BOOLEAN      DEFAULT FALSE,
+    enabled      BOOLEAN      DEFAULT TRUE,
     non_locked   BOOLEAN      DEFAULT TRUE,
     using_mfa    BOOLEAN      DEFAULT FALSE,
     created_date DATETIME     DEFAULT CURRENT_TIMESTAMP,

@@ -2,16 +2,22 @@ package fr.meritis.first.repository.implementation;
 
 import fr.meritis.first.domain.Role;
 import fr.meritis.first.domain.User;
+import fr.meritis.first.domain.UserPrincipal;
 import fr.meritis.first.exception.ApiException;
 import fr.meritis.first.repository.RoleRepository;
 import fr.meritis.first.repository.UserRepository;
+import fr.meritis.first.repository.implementation.rowmapper.UserRowMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -29,7 +35,7 @@ import static java.util.Objects.requireNonNull;
 @Repository
 @RequiredArgsConstructor
 @Slf4j
-public class UserRepositoryImpl implements UserRepository<User> {
+public class UserRepositoryImpl implements UserRepository<User>, UserDetailsService {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final RoleRepository<Role> roleRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -96,5 +102,29 @@ public class UserRepositoryImpl implements UserRepository<User> {
 
     private Integer getEmailCount(String email) {
         return namedParameterJdbcTemplate.queryForObject(COUNT_USER_EMAIL_QUERY, Map.of("email", email), Integer.class);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = getUserByEmail(email);
+        if (user == null) {
+            log.info("User not found in the database: {}", email);
+            throw new UsernameNotFoundException(String.format("User not found in the database: %s", email));
+        } else {
+            log.info("User found in the database: {}", email);
+            return new UserPrincipal(user, roleRepository.getRoleByUserId(user.getId()).getPermission());
+        }
+    }
+
+    public User getUserByEmail(String email) {
+        try {
+            return namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_EMAIL_QUERRY, Map.of("email", email), new UserRowMapper());
+        } catch (EmptyResultDataAccessException ex) {
+            throw new ApiException("No user found by email:" + email);
+        } catch (Exception ex) {
+            log.error(ex.getMessage());
+            throw new ApiException("An error eccurred. Please try again.");
+        }
+
     }
 }

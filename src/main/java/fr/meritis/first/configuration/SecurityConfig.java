@@ -1,12 +1,52 @@
 package fr.meritis.first.configuration;
 
+import fr.meritis.first.handler.CustomAccessDeniedHandler;
+import fr.meritis.first.handler.CustomAuthentificationEntryPoint;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+
+@RequiredArgsConstructor
 public class SecurityConfig {
+    private final BCryptPasswordEncoder encoder;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
+    private final CustomAuthentificationEntryPoint customAuthentificationEntryPoint;
+    private final UserDetailsService userDetailsService;
+    private static final String[] PUBLIC_URLS = {"/user/login/**"};
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return null;
+        http.csrf().disable().cors().disable();
+        http.sessionManagement().sessionCreationPolicy(STATELESS);
+        http.authorizeRequests().requestMatchers(PUBLIC_URLS).permitAll();
+        http.authorizeRequests().requestMatchers(DELETE, "/users/delete/**").hasAnyAuthority("DELETE:USER");
+        http.authorizeRequests().requestMatchers(DELETE, "/costomer/delete/**").hasAnyAuthority("DELETE:COSTOMER");
+        http.exceptionHandling().accessDeniedHandler(customAccessDeniedHandler).authenticationEntryPoint(customAuthentificationEntryPoint);
+        http.authorizeRequests().anyRequest().authenticated();
+        return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(encoder);
+        return new ProviderManager(authProvider);
     }
 }
