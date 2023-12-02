@@ -3,6 +3,7 @@ package fr.meritis.first.repository.implementation;
 import fr.meritis.first.domain.Role;
 import fr.meritis.first.domain.User;
 import fr.meritis.first.domain.UserPrincipal;
+import fr.meritis.first.dto.UserDTO;
 import fr.meritis.first.exception.ApiException;
 import fr.meritis.first.repository.RoleRepository;
 import fr.meritis.first.repository.UserRepository;
@@ -23,19 +24,25 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.Date;
 import java.util.UUID;
 
 import static fr.meritis.first.enumeration.RoleType.ROLE_USER;
 import static fr.meritis.first.enumeration.VerificationType.ACCOUNT;
 import static fr.meritis.first.query.UserQuery.*;
+import static fr.meritis.first.utils.SmsUtils.sendSMS;
+import static java.util.Map.of;
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
+import static org.apache.commons.lang3.time.DateFormatUtils.format;
+import static org.apache.commons.lang3.time.DateUtils.addDays;
 
 
 @Repository
 @RequiredArgsConstructor
 @Slf4j
 public class UserRepositoryImpl implements UserRepository<User>, UserDetailsService {
+    private static final String DATE_FORMAT = "yyyy-MM-dd hh:mm:ss";
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final RoleRepository<Role> roleRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -53,7 +60,7 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             roleRepository.addRoleToUser(user.getId(), ROLE_USER.name());
 
             String verificationUrl = getVerificationUrl(UUID.randomUUID().toString(), ACCOUNT.getType());
-            namedParameterJdbcTemplate.update(INSERT_VERIFICATION_URL_QUERY, Map.of("userId", user.getId(), "url", verificationUrl));
+            namedParameterJdbcTemplate.update(INSERT_VERIFICATION_URL_QUERY, of("userId", user.getId(), "url", verificationUrl));
 
             //emailService.sendVerificationUrl(user.getFirstname(), user.getEmail(), verificationUrl, ACCOUNT);
 
@@ -101,7 +108,7 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
     }
 
     private Integer getEmailCount(String email) {
-        return namedParameterJdbcTemplate.queryForObject(COUNT_USER_EMAIL_QUERY, Map.of("email", email), Integer.class);
+        return namedParameterJdbcTemplate.queryForObject(COUNT_USER_EMAIL_QUERY, of("email", email), Integer.class);
     }
 
     @Override
@@ -118,9 +125,24 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
 
     public User getUserByEmail(String email) {
         try {
-            return namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_EMAIL_QUERRY, Map.of("email", email), new UserRowMapper());
+            return namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_EMAIL_QUERRY, of("email", email), new UserRowMapper());
         } catch (EmptyResultDataAccessException ex) {
             throw new ApiException("No user found by email:" + email);
+        } catch (Exception ex) {
+            log.error(ex.getMessage());
+            throw new ApiException("An error eccurred. Please try again.");
+        }
+
+    }
+
+    @Override
+    public void sendVerificationCode(UserDTO user) {
+        String experationDate = format(addDays(new Date(),1), DATE_FORMAT);
+        String verificaionCode = randomAlphabetic(8).toUpperCase();
+        try {
+            namedParameterJdbcTemplate.update(DELETE_VERIFICATION_CODE_BY_USER_ID, of("userId", user.getId()));
+            namedParameterJdbcTemplate.update(INSERT_VERIFICATION_CODE_QUERRY, of("userId", user.getId(), "code",verificaionCode, "expirationDate", experationDate));
+            sendSMS(user.getPhone(),"From: first\nVerification code \n" + verificaionCode);
         } catch (Exception ex) {
             log.error(ex.getMessage());
             throw new ApiException("An error eccurred. Please try again.");

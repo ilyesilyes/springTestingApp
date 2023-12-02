@@ -1,6 +1,7 @@
 package fr.meritis.first.repository;
 
 import fr.meritis.first.domain.User;
+import fr.meritis.first.dto.UserDTO;
 
 import java.util.Collection;
 
@@ -13,6 +14,8 @@ public interface UserRepository<T extends User> {
     Boolean delete(Long id);
 
     T getUserByEmail(String email);
+
+    void sendVerificationCode(UserDTO user);
 
     /* more complexe operation */
 
