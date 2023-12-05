@@ -1,10 +1,16 @@
 package fr.meritis.first.dto;
 
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Data
+@Setter
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserDTO {
         private Long id;
         private String firstname;
@@ -19,4 +25,6 @@ public class UserDTO {
         private boolean isNotLocked;
         private boolean isUsingMfa;
         private LocalDateTime createdAt;
+        private String roleName;
+        private String permission;
 }

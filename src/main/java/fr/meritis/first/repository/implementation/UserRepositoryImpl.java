@@ -94,23 +94,6 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
         return null;
     }
 
-
-    private String getVerificationUrl(String key, String type){
-        return ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/verify" + type + "/" + key).toUriString();
-    }
-
-    private SqlParameterSource getSqlParameterSource(User user) {
-        return new MapSqlParameterSource()
-                .addValue("firstName", user.getFirstname())
-                .addValue("lastName", user.getLastname())
-                .addValue("email", user.getEmail())
-                .addValue("password", bCryptPasswordEncoder.encode(user.getPassword()));
-    }
-
-    private Integer getEmailCount(String email) {
-        return namedParameterJdbcTemplate.queryForObject(COUNT_USER_EMAIL_QUERY, of("email", email), Integer.class);
-    }
-
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = getUserByEmail(email);
@@ -143,10 +126,57 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             namedParameterJdbcTemplate.update(DELETE_VERIFICATION_CODE_BY_USER_ID, of("userId", user.getId()));
             namedParameterJdbcTemplate.update(INSERT_VERIFICATION_CODE_QUERRY, of("userId", user.getId(), "code",verificaionCode, "expirationDate", experationDate));
             sendSMS(user.getPhone(),"From: first\nVerification code \n" + verificaionCode);
+            log.info("Verification code: {}", verificaionCode);
         } catch (Exception ex) {
             log.error(ex.getMessage());
             throw new ApiException("An error eccurred. Please try again.");
         }
 
+    }
+
+    @Override
+    public User verifyCode(String email, String code) {
+        if(isVerificationCodeIsExpired(code)) throw new ApiException("This code is expired. Please login again.");
+
+        try {
+            User userByCode = namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_USER_CODE_QUERRY_FROM_TWO_FACTOR_VERFICATION, of("code", code), new UserRowMapper());
+            User userByEmail = namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_EMAIL_QUERRY, of("email", email), new UserRowMapper());
+            if (userByCode.getEmail().equalsIgnoreCase(userByEmail.getEmail())) {
+                namedParameterJdbcTemplate.update(DELETE_CODE_FROM_TWO_FACTOR_AUTHENTIFICATION, of("code", code));
+                return userByCode;
+            } else {
+                throw new ApiException("Code is invalid. Please try again.");
+            }
+        } catch(EmptyResultDataAccessException exception) {
+            throw new ApiException("Could not find record.");
+        } catch(Exception exception) {
+            throw new ApiException("An error eccurred. Please try again.");
+        }
+    }
+
+    private String getVerificationUrl(String key, String type){
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/verify" + type + "/" + key).toUriString();
+    }
+
+    private SqlParameterSource getSqlParameterSource(User user) {
+        return new MapSqlParameterSource()
+                .addValue("firstName", user.getFirstname())
+                .addValue("lastName", user.getLastname())
+                .addValue("email", user.getEmail())
+                .addValue("password", bCryptPasswordEncoder.encode(user.getPassword()));
+    }
+
+    private Integer getEmailCount(String email) {
+        return namedParameterJdbcTemplate.queryForObject(COUNT_USER_EMAIL_QUERY, of("email", email), Integer.class);
+    }
+
+    private Boolean isVerificationCodeIsExpired(String code) {
+        try {
+            return namedParameterJdbcTemplate.queryForObject(SELECT_CODE_EXPERATION_QUERY, of("code", code), Boolean.class);
+        } catch(EmptyResultDataAccessException exception) {
+            throw new ApiException("This code is not valid.");
+        } catch(Exception exception) {
+            throw new ApiException("An error eccurred. Please try again.");
+        }
     }
 }
