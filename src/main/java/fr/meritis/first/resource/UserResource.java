@@ -4,29 +4,28 @@ import fr.meritis.first.domain.HttpResponse;
 import fr.meritis.first.domain.User;
 import fr.meritis.first.domain.UserPrincipal;
 import fr.meritis.first.dto.UserDTO;
+import fr.meritis.first.exception.ApiException;
 import fr.meritis.first.form.LoginForm;
 import fr.meritis.first.provider.TokenProvider;
 import fr.meritis.first.service.RoleService;
 import fr.meritis.first.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 
 import static fr.meritis.first.dto.dtomapper.UserDTOMapper.toUser;
+import static fr.meritis.first.utils.ExceptionUtils.processError;
 import static java.time.LocalDateTime.now;
 import static java.util.Map.of;
-import static org.springframework.http.HttpStatus.CREATED;
-import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.*;
+import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
 @RestController
@@ -37,13 +36,18 @@ public class UserResource {
     private final AuthenticationManager authenticationManager;
     private final TokenProvider tokenProvider;
     private final RoleService roleService;
+    private final HttpServletRequest request;
+    private final HttpServletResponse response;
 
     @PostMapping("/login")
     public ResponseEntity<HttpResponse> login(@RequestBody @Valid LoginForm loginForm){
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginForm.getEmail(), loginForm.getPassword()));
-        UserDTO user = userService.getUserByEmail(loginForm.getEmail());
+        Authentication authentication = authenticate(loginForm.getEmail(), loginForm.getPassword());
+        UserDTO user = getAuthenticateUser(authentication);
         return user.isUsingMfa() ? sendVerificationCode(user) : sendResponse(user);
+    }
 
+    private UserDTO getAuthenticateUser(Authentication authentication) {
+        return ((UserPrincipal) authentication.getPrincipal()).getUserDTO();
     }
 
     @PostMapping("/register")
@@ -60,6 +64,21 @@ public class UserResource {
 
     }
 
+    @GetMapping("/profile")
+    public ResponseEntity<HttpResponse> profile(Authentication authentication){
+        UserDTO userDTO = userService.getUserByEmail(authentication.getName());
+        System.out.println(authentication);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .data(of("user", userDTO))
+                        .message("Profile Retrieved")
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
 
     @GetMapping("/verify/code/{email}/{code}")
     public ResponseEntity<HttpResponse> verifyCode(@PathVariable("email") String email, @PathVariable("code") String code){
@@ -92,8 +111,21 @@ public class UserResource {
         );
     }
 
+    @RequestMapping("/error")
+    public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){
+        return ResponseEntity.badRequest().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .reason("There is no mapping for a " + request.getMethod() + " request for this  path on the server")
+                        .status(BAD_REQUEST)
+                        .statusCode(BAD_REQUEST.value())
+                        .build()
+        );
+
+    }
+
     private UserPrincipal getUserPrincipal(UserDTO user) {
-        return new UserPrincipal(toUser(userService.getUserByEmail(user.getEmail())), roleService.getRoleByUserID(user.getId()).getPermission());
+        return new UserPrincipal(toUser(userService.getUserByEmail(user.getEmail())), roleService.getRoleByUserID(user.getId()));
     }
 
     private ResponseEntity<HttpResponse> sendVerificationCode(UserDTO user) {
@@ -106,5 +138,17 @@ public class UserResource {
                         .status(OK)
                         .statusCode(OK.value())
                         .build()
-        );    }
+        );
+    }
+
+    private Authentication authenticate(String email, String password) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(unauthenticated(email, password));
+            return authentication;
+        } catch (Exception exception) {
+            processError(request, response, exception);
+            throw new ApiException(exception.getMessage());
+        }
+    }
+
 }

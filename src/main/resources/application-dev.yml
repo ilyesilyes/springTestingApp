@@ -25,4 +25,9 @@ spring:
 
 server:
     port: 8081
+    error:
+        path: /user/error
+        whitelabel:
+            enabled: false
+
 

@@ -1,5 +1,6 @@
 package fr.meritis.first.configuration;
 
+import fr.meritis.first.filter.CustomAuthorisationFilter;
 import fr.meritis.first.handler.CustomAccessDeniedHandler;
 import fr.meritis.first.handler.CustomAuthentificationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,9 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthentificationEntryPoint customAuthentificationEntryPoint;
     private final UserDetailsService userDetailsService;
-    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/verify/code/**"};
+    private final CustomAuthorisationFilter customAuthorisationFilter;
+    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/verify/code/**", "/user/register/**"};
+    //private static final String[] PUBLIC_URLS = {"/**"};
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,6 +42,7 @@ public class SecurityConfig {
         http.authorizeRequests().requestMatchers(DELETE, "/costomer/delete/**").hasAnyAuthority("DELETE:COSTOMER");
         http.exceptionHandling().accessDeniedHandler(customAccessDeniedHandler).authenticationEntryPoint(customAuthentificationEntryPoint);
         http.authorizeRequests().anyRequest().authenticated();
+        //http.addFilterBefore(customAuthorisationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

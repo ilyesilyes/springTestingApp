@@ -7,7 +7,9 @@ import com.auth0.jwt.exceptions.InvalidClaimException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import fr.meritis.first.domain.UserPrincipal;
+import fr.meritis.first.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +28,7 @@ import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 
 @Component
+@RequiredArgsConstructor
 public class TokenProvider {
     private static final String GET_ARRAY_LLC = "GET_ARRAYS_LLC";
     private static final String CUSTOMER_MANAGEMENT_SERVICE = "CUSTOM_MANAGEMENT_SERVICE";
@@ -36,6 +39,8 @@ public class TokenProvider {
 
     @Value("${jwt.secret}")
     private String secret;
+    private final UserService userService;
+
     public String createAccessToken(UserPrincipal userPrincipal) {
         return JWT.create().withIssuer(GET_ARRAY_LLC).withAudience(CUSTOMER_MANAGEMENT_SERVICE)
                 .withIssuedAt(new Date()).withSubject(userPrincipal.getUsername()).withArrayClaim(AUTHORITIES, getClaimsFromUser(userPrincipal))
@@ -59,7 +64,7 @@ public class TokenProvider {
     }
 
     public Authentication getAuthentication(String email, List<GrantedAuthority> authorities, HttpServletRequest request) {
-        UsernamePasswordAuthenticationToken userPasswordAuthToken = new UsernamePasswordAuthenticationToken(email, null, authorities);
+        UsernamePasswordAuthenticationToken userPasswordAuthToken = new UsernamePasswordAuthenticationToken(userService.getUserByEmail(email), null, authorities);
         userPasswordAuthToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         return userPasswordAuthToken;
     }
@@ -82,15 +87,15 @@ public class TokenProvider {
     }
 
     public String getSubject(String token, HttpServletRequest request) {
-        String subject = null;
         try {
-            subject = getJWTVerifier().verify(token).getSubject();
+            return getJWTVerifier().verify(token).getSubject();
         } catch (TokenExpiredException exception) {
             request.setAttribute("expiredMessage", exception.getMessage());
+            throw (exception);
         } catch (InvalidClaimException exception) {
             request.setAttribute("invalidMessage", exception.getMessage());
+            throw (exception);
         }
-        return subject;
     }
 
 
