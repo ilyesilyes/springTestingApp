@@ -22,7 +22,7 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-
+//@Profile({"dev", "prod"})
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final BCryptPasswordEncoder encoder;

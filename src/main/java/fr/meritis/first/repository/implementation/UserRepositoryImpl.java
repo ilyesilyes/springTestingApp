@@ -56,7 +56,7 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             SqlParameterSource parameter = getSqlParameterSource(user);
             namedParameterJdbcTemplate.update(INSERT_USER_QUERRY, parameter, holder);
 
-            user.setId(requireNonNull(holder.getKey()).longValue());
+            user.setId((Long) requireNonNull(holder.getKeyList().get(0).get("ID")));
             roleRepository.addRoleToUser(user.getId(), ROLE_USER.name());
 
             String verificationUrl = getVerificationUrl(UUID.randomUUID().toString(), ACCOUNT.getType());
@@ -69,8 +69,8 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
 
             return user;
         } catch (Exception exception) {
-            log.error(exception.getMessage());
-            throw new ApiException("An error occured please try again." );
+            log.error("An exception occurred :", exception);
+            throw new ApiException("An error occurred please try again." );
         }
     }
 

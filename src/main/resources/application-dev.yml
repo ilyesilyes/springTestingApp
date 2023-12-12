@@ -23,6 +23,7 @@ spring:
           mode: never
           continue-on-error: false
 
+
 server:
     port: 8081
     error:
