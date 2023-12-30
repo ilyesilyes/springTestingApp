@@ -80,20 +80,6 @@ public class UserResource {
 
     }
 
-    @GetMapping("/verify/code/{email}/{code}")
-    public ResponseEntity<HttpResponse> verifyCode(@PathVariable("email") String email, @PathVariable("code") String code){
-        UserDTO userDTO = userService.verifyCode(email, code);
-        return ResponseEntity.created(getUri()).body(
-                HttpResponse.builder()
-                        .timeStamp(now().toString())
-                        .data(of("user", userDTO, "access_token", tokenProvider.createAccessToken(getUserPrincipal(userDTO)),
-                                "refresh_token", tokenProvider.createRefreshToken(getUserPrincipal(userDTO))))
-                        .status(OK)
-                        .statusCode(OK.value())
-                        .build()
-        );
-
-    }
 
     private URI getUri() {
         return URI.create(fromCurrentContextPath().path("/user/get/<userId>").toUriString());
@@ -110,6 +96,67 @@ public class UserResource {
                         .build()
         );
     }
+
+    @GetMapping("/verify/code/{email}/{code}") //this endpoint called when using mfa in authentification so the client send a code recovered from cellular message
+    public ResponseEntity<HttpResponse> verifyCode(@PathVariable("email") String email, @PathVariable("code") String code){
+        UserDTO userDTO = userService.verifyCode(email, code);
+        return ResponseEntity.created(getUri()).body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .data(of("user", userDTO, "access_token", tokenProvider.createAccessToken(getUserPrincipal(userDTO)),
+                                "refresh_token", tokenProvider.createRefreshToken(getUserPrincipal(userDTO))))
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
+
+    //Start - to reset password when user is not login
+    @GetMapping("/resetpassword/{email}") // endpoint called when we want to reset password
+    public ResponseEntity<HttpResponse> resetPassword(@PathVariable("email") String email){
+        userService.resetPassword(email);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .message("Email sent. Please check your email to reset your password")
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
+
+    @GetMapping("/verify/password/{key}") //endpoint called when the user must prove that he have the code to reset the password this key is send by mail
+    public ResponseEntity<HttpResponse> verifyUrl(@PathVariable("key") String key){
+        UserDTO user = userService.verifyPasswordKey(key);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .data(of("user", user))
+                        .message("Please enter a new password")
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
+
+    @PostMapping("/resetpassword/{key}/{password}/{confirmPassword}") //this endpoint is called when the user send the new password to be updated
+    public ResponseEntity<HttpResponse> resetPasswordWithKey(@PathVariable("key") String key, @PathVariable("password") String password,
+                                                          @PathVariable("confirmPassword") String confirmPassword){
+        userService.renewPassword(key, password, confirmPassword);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .message("Password reset successfully")
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
+    //End - to reset password when user is not login
 
     @RequestMapping("/error")
     public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){

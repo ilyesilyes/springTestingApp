@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 
@@ -21,13 +22,13 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @Slf4j
 public class ExceptionUtils {
     public static void processError(HttpServletRequest request, HttpServletResponse response, Exception exception) {
-        if (exception instanceof ApiException
-                || exception instanceof DisabledException || exception instanceof LockedException
+        if (exception instanceof ApiException || exception instanceof DisabledException
+                || exception instanceof LockedException || exception instanceof BadCredentialsException
                 || exception instanceof InvalidClaimException || exception instanceof TokenExpiredException) {
             HttpResponse httpResponse = getHttpResponse(response, exception.getMessage(), BAD_REQUEST);
             writeRespose(response, httpResponse);
         } else {
-            HttpResponse httpResponse = getHttpResponse(response, "An error occurred. Please try again.", INTERNAL_SERVER_ERROR);
+            HttpResponse httpResponse = getHttpResponse(response, "An error occurred. Please try again..", INTERNAL_SERVER_ERROR);
             writeRespose(response, httpResponse);
         }
         exception.printStackTrace();

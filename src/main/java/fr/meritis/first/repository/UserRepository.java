@@ -19,6 +19,12 @@ public interface UserRepository<T extends User> {
 
     T verifyCode(String email, String code);
 
+    void resetPassword(String email);
+
+    T verifyPasswordKey(String key);
+
+    void renewPassword(String key, String password, String confirmPassword);
+
     /* more complexe operation */
 
 }

@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
@@ -30,7 +31,7 @@ public class SecurityConfig {
     private final CustomAuthentificationEntryPoint customAuthentificationEntryPoint;
     private final UserDetailsService userDetailsService;
     private final CustomAuthorisationFilter customAuthorisationFilter;
-    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/verify/code/**", "/user/register/**"};
+    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/verify/code/**", "/user/register/**", "/user/resetpassword/**", "/user/verify/password/**"};
     //private static final String[] PUBLIC_URLS = {"/**"};
 
     @Bean
@@ -42,7 +43,7 @@ public class SecurityConfig {
         http.authorizeRequests().requestMatchers(DELETE, "/costomer/delete/**").hasAnyAuthority("DELETE:COSTOMER");
         http.exceptionHandling().accessDeniedHandler(customAccessDeniedHandler).authenticationEntryPoint(customAuthentificationEntryPoint);
         http.authorizeRequests().anyRequest().authenticated();
-        //http.addFilterBefore(customAuthorisationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(customAuthorisationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

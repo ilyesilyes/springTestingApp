@@ -11,6 +11,6 @@ public enum VerificationType {
     }
 
     public String getType() {
-        return type;
+        return type.toLowerCase();
     }
 }
