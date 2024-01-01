@@ -34,6 +34,7 @@ import static fr.meritis.first.enumeration.VerificationType.PASSWORD;
 import static fr.meritis.first.query.UserQuery.*;
 import static fr.meritis.first.utils.SmsUtils.sendSMS;
 import static java.util.Map.of;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.time.DateFormatUtils.format;
@@ -57,8 +58,9 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             KeyHolder holder = new GeneratedKeyHolder();
             SqlParameterSource parameter = getSqlParameterSource(user);
             namedParameterJdbcTemplate.update(INSERT_USER_QUERRY, parameter, holder);
-
-            user.setId((Long) requireNonNull(holder.getKeyList().get(0).get("ID")));
+            Long id = (Long) (holder.getKeyList().get(0).getOrDefault("ID", null));
+            if (isNull(id)) id = requireNonNull(holder.getKey()).longValue();
+            user.setId(id);
             roleRepository.addRoleToUser(user.getId(), ROLE_USER.name());
 
             String verificationUrl = getVerificationUrl(UUID.randomUUID().toString(), ACCOUNT.getType());
@@ -194,6 +196,22 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
         try {
             namedParameterJdbcTemplate.update(UPDATE_USER_PASSWORD_BY_URL_QUERY, of("password", bCryptPasswordEncoder.encode(password), "url", getVerificationUrl(key, PASSWORD.getType())));
             namedParameterJdbcTemplate.update(DELETE_VERIFICATION_BY_URL_QUERY, of("url", getVerificationUrl(key, PASSWORD.getType())));
+        } catch (Exception exception) {
+            log.error(exception.getMessage());
+            throw new ApiException("An error occured. Please try again.");
+        }
+    }
+
+    @Override
+    public User verifyAccountKey(String key) {
+        try {
+            User user = namedParameterJdbcTemplate.queryForObject(SELECT_USER_BY_ACCOUNT_URL_QUERY, of("url", getVerificationUrl(key, ACCOUNT.getType())), new UserRowMapper());
+            namedParameterJdbcTemplate.update(UPDATE_USER_ENABLED_QUERY, of("enabled", true, "userId", user.getId()));
+            //delete after updating - depends on your requirement
+            return user;
+        } catch(EmptyResultDataAccessException exception) {
+            log.error(exception.getMessage());
+            throw new ApiException("This link is not valid.");
         } catch (Exception exception) {
             log.error(exception.getMessage());
             throw new ApiException("An error occured. Please try again.");

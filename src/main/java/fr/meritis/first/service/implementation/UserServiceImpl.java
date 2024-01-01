@@ -55,5 +55,9 @@ public class UserServiceImpl implements UserService {
     return fromUser(user, roleRepository.getRoleByUserId(user.getId()));
     }
 
+    @Override
+    public UserDTO verifyAccountKey(String key) {
+        return mapToUserDTO(userRepository.verifyAccountKey(key));
+    }
 
 }

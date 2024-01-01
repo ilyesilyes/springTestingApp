@@ -127,7 +127,7 @@ public class UserResource {
 
     }
 
-    @GetMapping("/verify/password/{key}") //endpoint called when the user must prove that he have the code to reset the password this key is send by mail
+    @GetMapping("/verify/password/{key}") //endpoint called when the user must prove that he have the code to reset the password this key is sent by mail
     public ResponseEntity<HttpResponse> verifyUrl(@PathVariable("key") String key){
         UserDTO user = userService.verifyPasswordKey(key);
         return ResponseEntity.ok().body(
@@ -158,6 +158,21 @@ public class UserResource {
     }
     //End - to reset password when user is not login
 
+
+    @GetMapping("/verify/account/{key}") //this endpoint called when using mfa in authentification so the client send a code recovered from cellular message
+    public ResponseEntity<HttpResponse> verifyAccount(@PathVariable("key") String key){
+        UserDTO userDTO = userService.verifyAccountKey(key);
+        return ResponseEntity.created(getUri()).body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .message(userService.verifyAccountKey(key).isEnabled() ? "Account already verified" : "Account verified")
+                        .status(OK)
+                        .statusCode(OK.value())
+                        .build()
+        );
+
+    }
+
     @RequestMapping("/error")
     public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){
         return ResponseEntity.badRequest().body(
@@ -170,6 +185,19 @@ public class UserResource {
         );
 
     }
+
+    /*
+    @RequestMapping("/error")
+    public ResponseEntity<HttpResponse> handleError1(HttpServletRequest request){
+        return ResponseEntity.badRequest().body(
+                HttpResponse.builder()
+                        .timeStamp(now().toString())
+                        .reason("There is no mapping for a " + request.getMethod() + " request for this  path on the server")
+                        .status(BAD_REQUEST)
+                        .statusCode(BAD_REQUEST.value())
+                        .build()
+        );
+    }*/
 
     private UserPrincipal getUserPrincipal(UserDTO user) {
         return new UserPrincipal(toUser(userService.getUserByEmail(user.getEmail())), roleService.getRoleByUserID(user.getId()));
@@ -190,8 +218,7 @@ public class UserResource {
 
     private Authentication authenticate(String email, String password) {
         try {
-            Authentication authentication = authenticationManager.authenticate(unauthenticated(email, password));
-            return authentication;
+            return authenticationManager.authenticate(unauthenticated(email, password));
         } catch (Exception exception) {
             processError(request, response, exception);
             throw new ApiException(exception.getMessage());
